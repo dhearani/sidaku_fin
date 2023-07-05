@@ -13,82 +13,42 @@ cloudinary.config(
 import cloudinary.uploader
 import cloudinary.api
 import json
+import matplotlib.pyplot as plt
+import numpy as np
+from io import BytesIO
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, action
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.parsers import MultiPartParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import MyTokenObtainPairSerializer
-from base.models import ProdukHukum, RapatKoordinasi, Paparan, Berita, Akun, Details
-from .serializers import ProdukHukumSerializer, RapatKoordinasiSerializer, PaparanSerializer, BeritaSerializer, AkunSerializer, TokenPairSerializer, RegisterSerializer, ChangePasswordSerializer, UpdateUserSerializer, DetailsSerializer
+from base.models import ProdukHukum, RapatKoordinasi, Paparan, Berita, Fakta, LaporanKeuangan, Koperasi, UMKM, JenisProdukKoperasi, JenisProdukUMKM, PermintaanProduk, PermintaanPemasok, PenilaianPemasok, TenagaKerja, Perijinan, BahanBaku, PemakaianEnergi, AlatProduksi, Fasilitas, Pelatihan
+from .serializers import ProdukHukumSerializer, RapatKoordinasiSerializer, PaparanSerializer, BeritaSerializer, FaktaSerializer, TokenPairSerializer, ChangePasswordSerializer, RegisterSerializer, LaporanKeuanganSerializer, KoperasiSerializer, UMKMSerializer, JenisProdukKoperasiSerializer, JenisProdukUMKMSerializer, PermintaanProdukSerializer, PermintaanPemasokSerializer, PenilaianPemasokSerializer, TenagaKerjaSerializer, PerijinanSerializer, BahanBakuSerializer, PemakaianEnergiSerializer, AlatProduksiSerializer, FasilitasSerializer, PelatihanSerializer, GambarSerializer
 from rest_framework import status, generics, permissions, viewsets
 from rest_framework.authtoken.serializers import AuthTokenSerializer
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import User
 from django.http import HttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from base.permissions import IsUMKM, IsKoperasi, IsAdminSI, IsOwnerOrReadOnly
 
-class RegisterView(generics.CreateAPIView):
+class RegisterViewSet(ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+    permission_classes = [IsAdminUser]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['username']  # Replace with the fields you want to filter on
+    search_fields = ['username']
     
 class MyObtainTokenPairView(TokenObtainPairView):
     permission_classes = (AllowAny,)
     serializer_class = MyTokenObtainPairSerializer
-
-class ChangePasswordView(generics.UpdateAPIView):
-    queryset = User.objects.all()
-    permission_classes = (IsAuthenticated,)
-    serializer_class = ChangePasswordSerializer
-
-class UpdateProfileView(generics.UpdateAPIView):
-    
-    queryset = User.objects.all()
-    permission_classes = (IsAuthenticated,)
-    serializer_class = UpdateUserSerializer
-
-    
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def register(request):
-    serializer = AkunSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    
-    data_password = serializer.data["password"]
-    string_password = json.dumps(data_password)
-    password = str(string_password[1:-1])
-    hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()    
-    
-    regist = Akun(id=serializer.data["id"], nik=serializer.data["nik"], telepon=serializer.data["telepon"], username=serializer.data["username"], email=serializer.data["email"], password=serializer.data["password"], nama_lengkap=serializer.data["nama_lengkap"])
-    serializer = AkunSerializer(regist, data={'password': hashed_password}, partial=True)    
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['POST'])
-def login(request):
-    username = request.data.get('username')
-    data_password = request.data.get('password')
-    string_password = json.dumps(data_password)
-    password = str(string_password[1:-1])
-    hashed_password = hashlib.sha256(password.encode('utf-8')).hexdigest()
-    # user = Akun.objects.get(username=username)
-    # hashed_password = check_password(password, user.password)
-    
-    valid_username= Akun.objects.filter(username=username).first()
-    valid_password = Akun.objects.filter(password=hashed_password).first()
-    if valid_username and valid_password:
-        refresh = RefreshToken.for_user(valid_username)
-        serializer = TokenPairSerializer({'access': str(refresh.access_token), 'refresh': str(refresh)})
-        return Response(serializer.data)
-    return HttpResponse({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-    # return Response(str(hashed_password))
 
 class LogoutView(APIView):
     def post(self, request):
@@ -106,306 +66,255 @@ class LogoutView(APIView):
         except Exception:
             return Response({'message':'Gagal Logout'}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['PUT'])
-@parser_classes([MultiPartParser])
-def editDetails(request, pk):
-    items = Details.objects.get(pk=pk)                  
-    serializer = DetailsSerializer(items, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    
-    data_foto_profil = serializer.data["foto_profil"]
-    string_foto_profil = json.dumps(data_foto_profil)
-    foto_profil = str(string_foto_profil[2:-1])
-    
-    cloudinary.uploader.upload(foto_profil, public_id=foto_profil, unique_filename = False, overwrite=True)
-    srcURL_foto_profil = cloudinary.CloudinaryImage(foto_profil).build_url()
-    url_foto_profil = srcURL_foto_profil + ".png"
+class ChangePasswordViewSet(ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [IsAuthenticated]
 
-    upload = Details(id=serializer.data["id"], nik=serializer.data["nik"], telepon=serializer.data["telepon"], nama_lengkap=serializer.data["nama_lengkap"], foto_profil=serializer.data["foto_profil"], foto_profil_url=serializer.data["foto_profil_url"])
-    serializer = DetailsSerializer(upload, data={'foto_profil_url': url_foto_profil}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(foto_profil)
-        return Response(new_data)    
+class ProdukHukumViewSet(ModelViewSet):
+    queryset = ProdukHukum.objects.all()
+    serializer_class = ProdukHukumSerializer
+    permission_classes = [IsAdminUser | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama', 'kategori', 'tahun']  # Replace with the fields you want to filter on
+    search_fields = ['nama', 'kategori', 'tahun']
+
+class RapatKoordinasiViewSet(ModelViewSet):
+    queryset = RapatKoordinasi.objects.all()
+    serializer_class = RapatKoordinasiSerializer
+    permission_classes = [IsAdminUser | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama', 'kategori']  # Replace with the fields you want to filter on
+    search_fields = ['nama', 'kategori']
+
+class PaparanViewSet(ModelViewSet):
+    queryset = Paparan.objects.all()
+    serializer_class = PaparanSerializer
+    permission_classes = [IsAdminUser | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama']  # Replace with the fields you want to filter on
+    search_fields = ['nama']
+
+class BeritaViewSet(ModelViewSet):
+    queryset = Berita.objects.all()
+    serializer_class = BeritaSerializer
+    permission_classes = [IsAdminUser | IsAdminSI | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['judul']  # Replace with the fields you want to filter on
+    search_fields = ['judul']
+    
+    def retrieve(self, request, pk):
+        article = Berita.objects.get(id=pk)
+        article.views_count += 1
+        article.save()
+        serializer = BeritaSerializer(article)
+
+        return Response(serializer.data)
+
+class GambarViewSet(generics.ListCreateAPIView):
+    queryset = Berita.objects.all()
+    serializer_class = GambarSerializer
+    
+class FaktaViewSet(ModelViewSet):
+    queryset = Fakta.objects.all()
+    serializer_class = FaktaSerializer
+    permission_classes = [IsAdminUser | IsOwnerOrReadOnly]
+    
+class KoperasiViewSet(ModelViewSet):
+    queryset = Koperasi.objects.all()
+    serializer_class = KoperasiSerializer
+    permission_classes = [IsAdminUser | IsKoperasi | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama']  # Replace with the fields you want to filter on
+    search_fields = ['nama']
+
+class UMKMViewSet(ModelViewSet):
+    queryset = UMKM.objects.all()
+    serializer_class = UMKMSerializer
+    permission_classes = [IsAdminUser | IsUMKM | IsOwnerOrReadOnly]
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama_usaha']  # Replace with the fields you want to filter on
+    search_fields = ['nama_usaha']
+
+class LaporanKeuanganViewSet(ModelViewSet):
+    queryset = LaporanKeuangan.objects.all()
+    serializer_class = LaporanKeuanganSerializer
+    permission_classes = [IsAdminUser | IsUMKM | IsKoperasi | IsOwnerOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['nama_KUMKM']  # Replace with the fields you want to filter on
+    search_fields = ['nama_KUMKM']
+
+
+class UMKMListView(generics.ListCreateAPIView):
+    queryset = UMKM.objects.all()
+    serializer_class = UMKMSerializer
+
+class UMKMView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = UMKMSerializer
+    queryset = UMKM.objects.all()
+    
+class JenisProdukUMKMListView(generics.ListCreateAPIView):
+    queryset = JenisProdukUMKM.objects.all()
+    serializer_class = JenisProdukUMKMSerializer
+
+class JenisProdukUMKMView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = JenisProdukUMKMSerializer
+    queryset = JenisProdukUMKM.objects.all()
+    
+class PermintaanProdukListView(generics.ListCreateAPIView):
+    queryset = PermintaanProduk.objects.all()
+    serializer_class = PermintaanProdukSerializer
+
+class PermintaanProdukView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PermintaanProdukSerializer
+    queryset = PermintaanProduk.objects.all()
+    
+class PermintaanPemasokListView(generics.ListCreateAPIView):
+    queryset = PermintaanPemasok.objects.all()
+    serializer_class = PermintaanPemasokSerializer
+
+class PermintaanPemasokView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PermintaanPemasokSerializer
+    queryset = PermintaanPemasok.objects.all()
+    
+class PenilaianPemasokListView(generics.ListCreateAPIView):
+    queryset = PenilaianPemasok.objects.all()
+    serializer_class = PenilaianPemasokSerializer
+
+class PenilaianPemasokView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PenilaianPemasokSerializer
+    queryset = PenilaianPemasok.objects.all()
+
+class TenagaKerjaListView(generics.ListCreateAPIView):
+    queryset = TenagaKerja.objects.all()
+    serializer_class = TenagaKerjaSerializer
+
+class TenagaKerjaView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TenagaKerjaSerializer
+    queryset = TenagaKerja.objects.all()
+    
+class PerijinanListView(generics.ListCreateAPIView):
+    queryset = Perijinan.objects.all()
+    serializer_class = PerijinanSerializer
+
+class PerijinanView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PerijinanSerializer
+    queryset = Perijinan.objects.all()
+    
+class BahanBakuListView(generics.ListCreateAPIView):
+    queryset = BahanBaku.objects.all()
+    serializer_class = BahanBakuSerializer
+
+class BahanBakuView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = BahanBakuSerializer
+    queryset = BahanBaku.objects.all()
+    
+class PemakaianEnergiListView(generics.ListCreateAPIView):
+    queryset = PemakaianEnergi.objects.all()
+    serializer_class = PemakaianEnergiSerializer
+
+class PemakaianEnergiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PemakaianEnergiSerializer
+    queryset = PemakaianEnergi.objects.all()
+    
+class AlatProduksiListView(generics.ListCreateAPIView):
+    queryset = AlatProduksi.objects.all()
+    serializer_class = AlatProduksiSerializer
+
+class AlatProduksiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AlatProduksiSerializer
+    queryset = AlatProduksi.objects.all()
+    
+class FasilitasListView(generics.ListCreateAPIView):
+    queryset = Fasilitas.objects.all()
+    serializer_class = FasilitasSerializer
+
+class FasilitasView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = FasilitasSerializer
+    queryset = Fasilitas.objects.all()
+    
+class PelatihanListView(generics.ListCreateAPIView):
+    queryset = Pelatihan.objects.all()
+    serializer_class = PelatihanSerializer
+
+class PelatihanView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PelatihanSerializer
+    queryset = Pelatihan.objects.all()
+
+class KoperasiListView(generics.ListCreateAPIView):
+    queryset = Koperasi.objects.all()
+    serializer_class = KoperasiSerializer
+
+class KoperasiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = KoperasiSerializer
+    queryset = Koperasi.objects.all()
+    
+class JenisProdukKoperasiListView(generics.ListCreateAPIView):
+    queryset = JenisProdukKoperasi.objects.all()
+    serializer_class = JenisProdukKoperasiSerializer
+
+class JenisProdukKoperasiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = JenisProdukKoperasiSerializer
+    queryset = JenisProdukKoperasi.objects.all()
+
+class LaporanKeuanganListView(generics.ListCreateAPIView):
+    queryset = LaporanKeuangan.objects.all()
+    serializer_class = LaporanKeuanganSerializer
+
+class LaporanKeuanganView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = LaporanKeuanganSerializer
+    queryset = LaporanKeuangan.objects.all()
+
+class GrafikKUMKMView(APIView):
+    def get(self, request, format=None):
+        # Perform the calculation and retrieve the graphic value
+        koperasi = Koperasi.objects.count()
+        umkm = UMKM.objects.count()
         
-    return Response(serializer.data)
-
-# from rest_framework_simplejwt.views import TokenObtainPairView
-# from .serializers import CustomTokenObtainPairSerializer
-
-# class CustomTokenObtainPairView(TokenObtainPairView):
-#     serializer_class = CustomTokenObtainPairSerializer
-
-# @api_view(['POST'])
-# @parser_classes([MultiPartParser])
-# def registerAkun(request):
-#     serializer = AkunSerializer(data=request.data)
-#     if serializer.is_valid():
-#         serializer.save()
+        # Prepare data for the pie chart
+        labels = ['Koperasi', 'UMKM'] #label
+        sizes = np.array([koperasi, umkm]) #data
         
-#     data_fp = serializer.data["foto_profil"]
-#     string_fp = json.dumps(data_fp)
-#     fp = str(string_fp[2:-1])
-    
-#     cloudinary.uploader.upload(fp, public_id=fp, unique_filename = False, overwrite=True)
-#     srcURL_fp = cloudinary.CloudinaryImage(fp).build_url()
-#     url_fp = srcURL_fp + ".png"
-    
-#     upload = Akun(nik=serializer.data["nik"], nama=serializer.data["nama"], telepon=serializer.data["telepon"], email=serializer.data["email"], password=serializer.data["password"], username=serializer.data["username"], foto_profil=serializer.data["foto_profil"], foto_profil_url=serializer.data["foto_profil_url"], is_superadmin=serializer.data["is_superadmin"], is_adminsi=serializer.data["is_adminsi"], is_kumkm=serializer.data["is_kumkm"])
-#     serializer = AkunSerializer(upload, data={'foto_profil_url': url_fp}, partial=True)
-#     if serializer.is_valid():
-#         serializer.save()
-#         new_data = serializer.data
-#         os.remove(fp)
-#         return Response(new_data)
-    
-#     return Response(serializer.data)
-
-@api_view(['GET'])
-def getProdukHukum(request):
-    items = ProdukHukum.objects.all()
-    serializer = ProdukHukumSerializer(items, many=True)
-    return Response(serializer.data)
-
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def addProdukHukum(request):
-    serializer = ProdukHukumSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
+        # Check if any counts are NaN
+        if np.isnan(sizes).any():
+            return HttpResponse("Data is not available for creating the pie chart.")
+                
+        plt.figure(figsize=(8, 8))
+        plt.pie(sizes.flatten(), labels=labels, autopct='%1.1f%%', startangle=90)
+        plt.axis('equal')
+        plt.title('Pie Chart')  
         
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1])
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
-    
-    upload = ProdukHukum(id=serializer.data["id"], nama=serializer.data["nama"], kategori=serializer.data["kategori"], tahun=serializer.data["tahun"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
-    serializer = ProdukHukumSerializer(upload, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)
-    
-    return Response(serializer.data)
+        # Save the chart to a BytesIO object
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        plt.close()
 
-@api_view(['PUT'])
-def editProdukHukum(request, pk):
-    items = ProdukHukum.objects.get(pk=pk)                  
-    serializer = ProdukHukumSerializer(items, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1]) 
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
+        # Return the chart as the response
+        buffer.seek(0)
+        return HttpResponse(buffer.getvalue(), content_type='image/png')
 
-    serializer = ProdukHukumSerializer(items, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['DELETE'])
-def deleteProdukHukum(request, pk):
-    items = ProdukHukum.objects.get(pk=pk)
-    items.delete()
-    return Response('ok')
+# komoditi koperasi dan UMKM
 
-@api_view(['GET'])
-def getRapatKoordinasi(request):
-    items = RapatKoordinasi.objects.all()
-    serializer = RapatKoordinasiSerializer(items, many=True)
-    return Response(serializer.data)
+# Skala UMKM
 
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def addRapatKoordinasi(request):
-    serializer = RapatKoordinasiSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1])
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
-    
-    upload = RapatKoordinasi(id=serializer.data["id"], nama=serializer.data["nama"], kategori=serializer.data["kategori"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
-    serializer = RapatKoordinasiSerializer(upload, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)
-    
-    return Response(serializer.data)
+# Omzet Kumulatif
 
-@api_view(['PUT'])
-def editRapatKoordinasi(request, pk):
-    items = RapatKoordinasi.objects.get(pk=pk)                  
-    serializer = RapatKoordinasiSerializer(items, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1]) 
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
+# Permintaan Produk UMKM
 
-    serializer = RapatKoordinasiSerializer(items, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# Bullwhip Effect KUMKM
 
-@api_view(['DELETE'])
-def deleteRapatKoordinasi(request, pk):
-    items = RapatKoordinasi.objects.get(pk=pk)
-    items.delete()
-    return Response('ok')
+# Rata" Kinerja Pemasok UMKM
 
-@api_view(['GET'])
-def getPaparan(request):
-    items = Paparan.objects.all()
-    serializer = PaparanSerializer(items, many=True)
-    return Response(serializer.data)
 
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def addPaparan(request):
-    serializer = PaparanSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1])
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
-    
-    upload = Paparan(id=serializer.data["id"], nama=serializer.data["nama"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
-    serializer = PaparanSerializer(upload, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)    
-        
-    return Response(serializer.data)
 
-@api_view(['PUT'])
-def editPaparan(request, pk):
-    items = Paparan.objects.get(pk=pk)                  
-    serializer = PaparanSerializer(items, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    
-    data_dok = serializer.data["dokumen"]
-    string_dok = json.dumps(data_dok)
-    dok = str(string_dok[2:-1]) 
-    
-    cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
-    srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
-    url_dok = srcURL_dokumen + ".pdf"
-
-    serializer = PaparanSerializer(items, data={'dok_url': url_dok}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(dok)
-        return Response(new_data)
-        
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['DELETE'])
-def deletePaparan(request, pk):
-    items = Paparan.objects.get(pk=pk)
-    items.delete()
-    return Response('ok')
-
-@api_view(['GET'])
-def getBerita(request):
-    items = Berita.objects.all()
-    serializer = BeritaSerializer(items, many=True)
-    return Response(serializer.data)
-
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def addBerita(request):
-    serializer = BeritaSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        
-    data_gambar = serializer.data["gambar"]
-    string_gambar = json.dumps(data_gambar)
-    gambar = str(string_gambar[2:-1])
-    
-    cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
-    srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
-    url_gambar = srcURL_gambar + ".png"
-
-    upload = Berita(id=serializer.data["id"], judul=serializer.data["judul"], isi=serializer.data["isi"], gambar=serializer.data["gambar"], gambar_url=serializer.data["gambar_url"])
-    serializer = BeritaSerializer(upload, data={'gambar_url': url_gambar}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(gambar)
-        return Response(new_data)    
-        
-    return Response(serializer.data)
-
-@api_view(['PUT'])
-def editBerita(request, pk):
-    items = Berita.objects.get(pk=pk)                  
-    serializer = BeritaSerializer(items, data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        
-    data_gambar = serializer.data["gambar"]
-    string_gambar = json.dumps(data_gambar)
-    gambar = str(string_gambar[2:-1]) 
-        
-    cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
-    srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
-    url_gambar = srcURL_gambar + ".png"
-
-    serializer = BeritaSerializer(items, data={'gambar_url': url_gambar}, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        new_data = serializer.data
-        os.remove(gambar)
-        return Response(new_data)
-        
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['DELETE'])
-def deleteBerita(request, pk):
-    items = Berita.objects.get(pk=pk)
-    items.delete()
-    return Response('ok')
 
 # @api_view(['POST'])
 # def tes(request):
@@ -504,4 +413,336 @@ def deleteBerita(request, pk):
 #         return Response(new_data)
     
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#SAYANG DIBUANG SEBELUM FIX
+
+#Produk Hukum
+# def list(self, request, pk=None):
+    #     items = ProdukHukum.objects.all()
+    #     serializer = ProdukHukumSerializer(items, many=True)
+    #     return Response(serializer.data)
+    
+    # def retrieve(self, request, pk, *args, **kwargs):
+    #     items = ProdukHukum.objects.get(pk=pk)
+    #     serializer = ProdukHukumSerializer(items)
+    #     return Response(serializer.data)
+
+    # @parser_classes([MultiPartParser])
+    # def create(self, request, *args, **kwargs):
+    #     serializer = ProdukHukumSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+            
+    #     data_dok = serializer.data["dokumen"]
+    #     string_dok = json.dumps(data_dok)
+    #     dok = str(string_dok[2:-1])
+        
+    #     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+    #     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+    #     url_dok = srcURL_dokumen + ".pdf"
+        
+    #     upload = ProdukHukum(id=serializer.data["id"], nama=serializer.data["nama"], kategori=serializer.data["kategori"], tahun=serializer.data["tahun"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
+    #     serializer = ProdukHukumSerializer(upload, data={'dok_url': url_dok}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(dok)
+    #         return Response(new_data)
+        
+    #     return Response(serializer.data)
+
+    # def update(self, request, pk, *args, **kwargs):
+    #     items = ProdukHukum.objects.get(pk=pk)                  
+    #     serializer = ProdukHukumSerializer(items, data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+        
+    #     data_dok = serializer.data["dokumen"]
+    #     string_dok = json.dumps(data_dok)
+    #     dok = str(string_dok[2:-1]) 
+        
+    #     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+    #     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+    #     url_dok = srcURL_dokumen + ".pdf"
+
+    #     serializer = ProdukHukumSerializer(items, data={'dok_url': url_dok}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(dok)
+    #         return Response(new_data)
+        
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def destroy(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     self.perform_destroy(instance)
+    #     return Response({
+    #             "code": 200,
+    #             "message": "data berhasil dihapus"
+    #         },status=status.HTTP_204_NO_CONTENT)
+    
+    #Rapat Koordinasi
+    # def list(self, request, pk=None):
+#     items = RapatKoordinasi.objects.all()
+#     serializer = RapatKoordinasiSerializer(items, many=True)
+#     return Response(serializer.data)
+
+# def retrieve(self, request, pk, *args, **kwargs):
+#         items = RapatKoordinasi.objects.get(pk=pk)
+#         serializer = RapatKoordinasiSerializer(items)
+#         return Response(serializer.data)
+
+# @parser_classes([MultiPartParser])
+# def create(self, request, *args, **kwargs):
+#     serializer = RapatKoordinasiSerializer(data=request.data)
+#     if serializer.is_valid():
+#         serializer.save()
+        
+#     data_dok = serializer.data["dokumen"]
+#     string_dok = json.dumps(data_dok)
+#     dok = str(string_dok[2:-1])
+    
+#     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+#     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+#     url_dok = srcURL_dokumen + ".pdf"
+    
+#     upload = RapatKoordinasi(id=serializer.data["id"], nama=serializer.data["nama"], kategori=serializer.data["kategori"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
+#     serializer = RapatKoordinasiSerializer(upload, data={'dok_url': url_dok}, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         new_data = serializer.data
+#         os.remove(dok)
+#         return Response(new_data)
+    
+#     return Response(serializer.data)
+
+# def update(self, request, pk, *args, **kwargs):
+#     items = RapatKoordinasi.objects.get(pk=pk)                  
+#     serializer = RapatKoordinasiSerializer(items, data=request.data)
+#     if serializer.is_valid():
+#         serializer.save()
+    
+#     data_dok = serializer.data["dokumen"]
+#     string_dok = json.dumps(data_dok)
+#     dok = str(string_dok[2:-1]) 
+    
+#     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+#     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+#     url_dok = srcURL_dokumen + ".pdf"
+
+#     serializer = RapatKoordinasiSerializer(items, data={'dok_url': url_dok}, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         new_data = serializer.data
+#         os.remove(dok)
+#         return Response(new_data)
+    
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# def destroy(self, request, *args, **kwargs):
+#     instance = self.get_object()
+#     self.perform_destroy(instance)
+#     return Response({
+#             "code": 200,
+#             "message": "data berhasil dihapus"
+#         },status=status.HTTP_204_NO_CONTENT)
+    
+    #Paparan
+    # def list(self, request, pk=None):
+#     items = Paparan.objects.all()
+#     serializer = PaparanSerializer(items, many=True)
+#     return Response(serializer.data)
+
+# def retrieve(self, request, pk, *args, **kwargs):
+#         items = Paparan.objects.get(pk=pk)
+#         serializer = PaparanSerializer(items)
+#         return Response(serializer.data)
+
+# @parser_classes([MultiPartParser])
+# def create(self, request, *args, **kwargs):
+#     serializer = PaparanSerializer(data=request.data)
+#     if serializer.is_valid():
+#         serializer.save()
+        
+#     data_dok = serializer.data["dokumen"]
+#     string_dok = json.dumps(data_dok)
+#     dok = str(string_dok[2:-1])
+    
+#     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+#     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+#     url_dok = srcURL_dokumen + ".pdf"
+    
+#     upload = Paparan(id=serializer.data["id"], nama=serializer.data["nama"], dokumen=serializer.data["dokumen"], dok_url=serializer.data["dok_url"])
+#     serializer = PaparanSerializer(upload, data={'dok_url': url_dok}, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         new_data = serializer.data
+#         os.remove(dok)
+#         return Response(new_data)    
+        
+#     return Response(serializer.data)
+
+# def update(self, request, pk, *args, **kwargs):
+#     items = Paparan.objects.get(pk=pk)                  
+#     serializer = PaparanSerializer(items, data=request.data)
+#     if serializer.is_valid():
+#         serializer.save()
+    
+#     data_dok = serializer.data["dokumen"]
+#     string_dok = json.dumps(data_dok)
+#     dok = str(string_dok[2:-1]) 
+    
+#     cloudinary.uploader.upload(dok, public_id=dok, unique_filename = False, overwrite=True)
+#     srcURL_dokumen = cloudinary.CloudinaryImage(dok).build_url()
+#     url_dok = srcURL_dokumen + ".pdf"
+
+#     serializer = PaparanSerializer(items, data={'dok_url': url_dok}, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         new_data = serializer.data
+#         os.remove(dok)
+#         return Response(new_data)
+        
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# def destroy(self, request, *args, **kwargs):
+#         instance = self.get_object()
+#         self.perform_destroy(instance)
+#         return Response({
+#                 "code": 200,
+#                 "message": "data berhasil dihapus"
+#             },status=status.HTTP_204_NO_CONTENT)
+    
+    #Berita
+    # def list(self, request, pk=None):
+    #     items = Berita.objects.all()
+    #     serializer = BeritaSerializer(items, many=True)
+    #     return Response(serializer.data)
+
+    # def retrieve(self, request, pk, *args, **kwargs):
+    #     items = Berita.objects.get(pk=pk)
+    #     serializer = BeritaSerializer(items)
+    #     return Response(serializer.data)
+
+    # @parser_classes([MultiPartParser])
+    # def create(self, request, *args, **kwargs):
+    #     serializer = BeritaSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+            
+    #     data_gambar = serializer.data["gambar"]
+    #     string_gambar = json.dumps(data_gambar)
+    #     gambar = str(string_gambar[2:-1])
+        
+    #     cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
+    #     srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
+    #     url_gambar = srcURL_gambar + ".png"
+
+    #     upload = Berita(id=serializer.data["id"], judul=serializer.data["judul"], isi=serializer.data["isi"], gambar=serializer.data["gambar"], gambar_url=serializer.data["gambar_url"])
+    #     serializer = BeritaSerializer(upload, data={'gambar_url': url_gambar}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(gambar)
+    #         return Response(new_data)
+         
+    #     return Response(serializer.data)
+
+    # def update(self, request, pk, *args, **kwargs):
+    #     items = Berita.objects.get(pk=pk)                  
+    #     serializer = BeritaSerializer(items, data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+            
+    #     data_gambar = serializer.data["gambar"]
+    #     string_gambar = json.dumps(data_gambar)
+    #     gambar = str(string_gambar[2:-1]) 
+            
+    #     cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
+    #     srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
+    #     url_gambar = srcURL_gambar + ".png"
+
+    #     serializer = BeritaSerializer(items, data={'gambar_url': url_gambar}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(gambar)
+    #         return Response(new_data)  
+           
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def destroy(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     self.perform_destroy(instance)
+    #     return Response({
+    #             "code": 200,
+    #             "message": "data berhasil dihapus"
+    #         },status=status.HTTP_204_NO_CONTENT)
+    
+    #Fakta
+    # def list(self, request, pk=None):
+    #     items = Fakta.objects.all()
+    #     serializer = FaktaSerializer(items, many=True)
+    #     return Response(serializer.data)
+
+    # # def retrieve(self, request, pk, *args, **kwargs):
+    # #     items = Fakta.objects.get(pk=pk)
+    # #     serializer = FaktaSerializer(items)
+    # #     return Response(serializer.data)
+
+    # @parser_classes([MultiPartParser])
+    # def create(self, request, *args, **kwargs):
+    #     serializer = FaktaSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+            
+    #     data_gambar = serializer.data["gambar"]
+    #     string_gambar = json.dumps(data_gambar)
+    #     gambar = str(string_gambar[2:-1])
+        
+    #     cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
+    #     srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
+    #     url_gambar = srcURL_gambar + ".png"
+
+    #     upload = Fakta(id=serializer.data["id"], judul=serializer.data["judul"], isi=serializer.data["isi"], gambar=serializer.data["gambar"], gambar_url=serializer.data["gambar_url"])
+    #     serializer = FaktaSerializer(upload, data={'gambar_url': url_gambar}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(gambar)
+    #         return Response(new_data)
+         
+    #     return Response(serializer.data)
+
+    # def update(self, request, pk, *args, **kwargs):
+    #     items = Fakta.objects.get(pk=pk)                  
+    #     serializer = FaktaSerializer(items, data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+            
+    #     data_gambar = serializer.data["gambar"]
+    #     string_gambar = json.dumps(data_gambar)
+    #     gambar = str(string_gambar[2:-1]) 
+            
+    #     cloudinary.uploader.upload(gambar, public_id=gambar, unique_filename = False, overwrite=True)
+    #     srcURL_gambar = cloudinary.CloudinaryImage(gambar).build_url()
+    #     url_gambar = srcURL_gambar + ".png"
+
+    #     serializer = FaktaSerializer(items, data={'gambar_url': url_gambar}, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         new_data = serializer.data
+    #         os.remove(gambar)
+    #         return Response(new_data)  
+           
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def destroy(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     self.perform_destroy(instance)
+    #     return Response({
+    #             "code": 200,
+    #             "message": "data berhasil dihapus"
+    #         },status=status.HTTP_204_NO_CONTENT)
 

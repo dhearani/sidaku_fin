@@ -39,12 +39,25 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'base',
     'cloudinary',
+    'cloudinary_storage',
+    'leaflet',
 ]
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dndznnstu',
+    'API_KEY': '414626631279137',
+    'API_SECRET': 'bMKAlxFTTpIKkCe_1CtiEVvJKz8',
+}
+
+GDAL_LIBRARY_PATH = r'C:\Users\dhrn_\anaconda3\Library\bin\gdal.dll'
+GEOS_LIBRARY_PATH = r'C:\Users\dhrn_\anaconda3\Lib\site-packages\osgeo\geos_c.dll'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -125,6 +138,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# AUTH_USER_MODEL = 'base.Akun'
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
