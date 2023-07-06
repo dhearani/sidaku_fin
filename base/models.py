@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.gis.db import models
 from django.contrib.auth.models import AbstractUser, Permission, Group, User, AbstractBaseUser, BaseUserManager, PermissionsMixin
 import uuid
+from django.core.exceptions import ValidationError
+from django.utils.deconstruct import deconstructible
 
 # class Informasi(models.Model):
 #     logo_plut = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
@@ -21,6 +23,11 @@ import uuid
 #     nahub2 = models.CharField(max_length=50)
 #     wa_nahub1 = models.CharField(max_length=20)
 #     wa_nahub2 = models.CharField(max_length=20)
+@deconstructible
+class PDFValidator:
+    def __call__(self, value):
+        if not value.name.endswith('.pdf'):
+            raise ValidationError('Only PDF files are allowed.')
 
 class Detail(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
@@ -48,16 +55,16 @@ class ProdukHukum(models.Model):
     )
     kategori = models.CharField(max_length=255, choices=KATEGORI)
     tahun = models.IntegerField(null=True)
-    dokumen = models.FileField((""), upload_to='documents', null=True)
+    dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class RapatKoordinasi(models.Model):
     nama = models.CharField(max_length=255)
     kategori = models.CharField(max_length=255)
-    dokumen = models.FileField((""), upload_to='documents', null=True)
+    dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class Paparan(models.Model):
     nama = models.CharField(max_length=255)
-    dokumen = models.FileField((""), upload_to='documents', null=True)
+    dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class Berita(models.Model):
     judul = models.CharField(max_length=255)
@@ -94,20 +101,20 @@ class Koperasi(models.Model):
     jml_karyawan = models.IntegerField(null=True)
     tgl_rat = models.DateField()
     jml_hadir_rat = models.IntegerField(null=True)
-    produk_unggulan = models.FileField(max_length=255)
-    simpanan = models.FileField((""), upload_to='documents', null=True)
-    pinjaman = models.FileField((""), upload_to='documents', null=True)
+    produk_unggulan = models.FileField(max_length=255, validators=[PDFValidator()])
+    simpanan = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    pinjaman = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     latitude = models.IntegerField()
     longitude = models.IntegerField()
     tgl_penginputan = models.DateField()
     nama_pemilik = models.CharField(max_length=255)
     nib = models.CharField(max_length=255)
     nik = models.CharField(max_length=255)
-    dok_ketua = models.FileField((""), upload_to='documents', null=True)
-    dok_sekretaris = models.FileField((""), upload_to='documents', null=True)
-    dok_bendahara = models.FileField((""), upload_to='documents', null=True)
-    dok_pengelola = models.FileField((""), upload_to='documents', null=True)
-    dok_pengawas = models.FileField((""), upload_to='documents', null=True)
+    dok_ketua = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    dok_sekretaris = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    dok_bendahara = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    dok_pengelola = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    dok_pengawas = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class JenisProdukKoperasi(models.Model):
 #     # FK ID Koperasi
@@ -337,11 +344,11 @@ class LaporanKeuangan(models.Model):
     )
     bulan = models.CharField(max_length=10, choices=BULAN)
     tahun = models.IntegerField()
-    laba_rugi = models.FileField((""), upload_to='documents', null=True)
-    neraca = models.FileField((""), upload_to='documents', null=True)
-    arus_kas = models.FileField((""), upload_to='documents', null=True)
-    perubahan_modal = models.FileField((""), upload_to='documents', null=True)
-    catatan_keuangan = models.FileField((""), upload_to='documents', null=True)
+    laba_rugi = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    neraca = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    arus_kas = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    perubahan_modal = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    catatan_keuangan = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     kas = models.IntegerField()
     bank = models.IntegerField()
     pinjaman_anggota = models.IntegerField()

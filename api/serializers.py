@@ -13,6 +13,8 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 import cloudinary
 import cloudinary.uploader
+from rest_framework.exceptions import ValidationError, APIException, AuthenticationFailed
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_200_OK
 
 class DetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,14 +61,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         return instance
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    
     @classmethod
     def get_token(cls, user):
-        token = super(MyTokenObtainPairSerializer, cls).get_token(user)
+        try:
+            token = super(MyTokenObtainPairSerializer, cls).get_token(user)
 
-        # Add custom claims
-        token['username'] = user.username
+            # Add custom claims
+            token['username'] = user.username
+        
+        except AuthenticationFailed:
+            raise ValidationError('Invalid username or password.')
+        except (ConnectionError, TimeoutError):
+            raise APIException('An error occurred while connecting to the server. Please try again later.')
+        except Exception as e:
+            raise APIException('An unexpected error occurred: {}'.format(str(e)))
         return token
+        return Response({'message': 'Login successful.'}, status=HTTP_200_OK)
 
 class TokenPairSerializer(serializers.Serializer):
     access = serializers.CharField()
@@ -129,11 +139,6 @@ class ProdukHukumSerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        old_dokumen = instance.dokumen
-        
-        if old_dokumen:
-            cloudinary.uploader.destroy(old_dokumen.name)
-        
         nama = validated_data.pop('nama')
         kategori = validated_data.pop('kategori')
         tahun = validated_data.pop('tahun')
@@ -178,11 +183,6 @@ class RapatKoordinasiSerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        old_dokumen = instance.dokumen
-        
-        if old_dokumen:
-            cloudinary.uploader.destroy(old_dokumen.name)
-            
         nama = validated_data.pop('nama')
         kategori = validated_data.pop('kategori')
         dokumen = validated_data.pop('dokumen')
@@ -224,11 +224,6 @@ class PaparanSerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        old_dokumen = instance.dokumen
-        
-        if old_dokumen:
-            cloudinary.uploader.destroy(old_dokumen.name)
-            
         nama = validated_data.pop('nama')
         dokumen = validated_data.pop('dokumen')
         instance = super().update(instance, validated_data)
@@ -267,11 +262,6 @@ class BeritaSerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        old_gambar = instance.gambar
-        
-        if old_gambar:
-            cloudinary.uploader.destroy(old_gambar.name)
-            
         gambar = validated_data.pop('gambar', None)
         instance = super().update(instance, validated_data)
         if gambar:
@@ -315,11 +305,6 @@ class FaktaSerializer(serializers.ModelSerializer):
         return instance
     
     def update(self, instance, validated_data):
-        old_gambar = instance.gambar
-        
-        if old_gambar:
-            cloudinary.uploader.destroy(old_gambar.name)
-            
         judul = validated_data.pop('judul')
         isi = validated_data.pop('isi')
         gambar = validated_data.pop('gambar')
