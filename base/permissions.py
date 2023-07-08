@@ -13,7 +13,7 @@ class IsUMKM(BasePermission):
         except Detail.DoesNotExist:
             return False
 
-        return bool(profile.is_umkm)
+        return bool(profile.role == 'umkm')
 
 
 class IsKoperasi(BasePermission):
@@ -27,7 +27,7 @@ class IsKoperasi(BasePermission):
         except Detail.DoesNotExist:
             return False
 
-        return bool(profile.is_koperasi)
+        return bool(profile.role == 'koperasi')
     
 class IsAdminSI(BasePermission):
     def has_permission(self, request, view):
@@ -40,7 +40,7 @@ class IsAdminSI(BasePermission):
         except Detail.DoesNotExist:
             return False
 
-        return bool(profile.is_adminsi)
+        return bool(profile.role == 'adminsi')
     
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """

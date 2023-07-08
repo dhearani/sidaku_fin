@@ -5,38 +5,37 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 
-# class Informasi(models.Model):
-#     logo_plut = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-#     logo_sidaku = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-#     ket_plut = models.CharField(max_length=100)
-#     ket_sidaku = models.CharField(max_length=100)
-#     alamat_plut = models.CharField(max_length=100)
-#     telepon = models.CharField(max_length=13)
-#     email = models.EmailField()
-#     link_ig = models.CharField(max_length=100)
-#     link_fb = models.CharField(max_length=100)
-
-# class KontakPelayanan(models.Model):
-#     fp_nahub1 = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-#     fp_nahub2 = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-#     nahub1 = models.CharField(max_length=50)
-#     nahub2 = models.CharField(max_length=50)
-#     wa_nahub1 = models.CharField(max_length=20)
-#     wa_nahub2 = models.CharField(max_length=20)
 @deconstructible
 class PDFValidator:
     def __call__(self, value):
         if not value.name.endswith('.pdf'):
             raise ValidationError('Only PDF files are allowed.')
 
+class Informasi(models.Model):
+    logo_plut = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
+    logo_sidaku = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
+    ket_plut = models.CharField(max_length=100)
+    ket_sidaku = models.CharField(max_length=100)
+    alamat_plut = models.CharField(max_length=100)
+    telepon = models.CharField(max_length=13)
+    email = models.EmailField()
+    link_ig = models.CharField(max_length=100)
+    link_fb = models.CharField(max_length=100)
+
+class KontakPelayanan(models.Model):
+    fp_nahub1 = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
+    fp_nahub2 = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
+    nahub1 = models.CharField(max_length=50)
+    nahub2 = models.CharField(max_length=50)
+    wa_nahub1 = models.CharField(max_length=20)
+    wa_nahub2 = models.CharField(max_length=20)
+
 class Detail(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
     nik = models.CharField(max_length=16, unique=True)
     telepon = models.CharField(max_length=13)
     foto_profil = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-    is_umkm = models.SmallIntegerField(null=True)
-    is_koperasi = models.SmallIntegerField(null=True)
-    is_adminsi = models.SmallIntegerField(null=True)
+    role = models.CharField(max_length=10, null=True)
 
 class ProdukHukum(models.Model):
     nama = models.CharField(max_length=255, null=True)
@@ -71,7 +70,7 @@ class Berita(models.Model):
     isi = models.TextField(max_length=5000)
     gambar = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
     views_count = models.IntegerField(default=0)
-    # date_created
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
 class Fakta(models.Model):
     judul = models.CharField(max_length=255)
@@ -79,7 +78,7 @@ class Fakta(models.Model):
     gambar = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
   
 class Koperasi(models.Model):
-#     # FK NIK pemilik
+    
     nama = models.CharField(max_length=255)
     alamat = models.CharField(max_length=255)
     foto_profil = models.ImageField((""), upload_to='foto_profil', height_field=None, width_field=None, max_length=None)
@@ -116,6 +115,7 @@ class Koperasi(models.Model):
     dok_bendahara = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     dok_pengelola = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     dok_pengawas = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     
 class JenisProdukKoperasi(models.Model):
 #     # FK ID Koperasi
@@ -169,6 +169,7 @@ class UMKM(models.Model):
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
     point = models.PointField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     
 class JenisProdukUMKM(models.Model):
 #   # FK ID UMKM
@@ -389,6 +390,7 @@ class LaporanKeuangan(models.Model):
     jasa_simpanan_berjangka = models.IntegerField()
     jasa_simpanan_khusus = models.IntegerField()
     biaya_asuransi = models.IntegerField()
+    biaya_penysh_piutang_tak_tertagih = models.IntegerField()
     biaya_audit = models.IntegerField()
     biaya_pajak = models.IntegerField()
     biaya_keuangan_lain = models.IntegerField()

@@ -95,7 +95,7 @@ WSGI_APPLICATION = 'sidaku_fin.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.contrib.gis.db.backends.mysql',
         'NAME': 'sidaku_fin',
         'HOST': '127.0.0.1',
         'PORT': '3306',
