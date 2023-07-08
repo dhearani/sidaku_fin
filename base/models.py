@@ -104,8 +104,9 @@ class Koperasi(models.Model):
     produk_unggulan = models.FileField(max_length=255, validators=[PDFValidator()])
     simpanan = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     pinjaman = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
-    latitude = models.IntegerField()
-    longitude = models.IntegerField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    point = models.PointField(null=True)
     tgl_penginputan = models.DateField()
     nama_pemilik = models.CharField(max_length=255)
     nib = models.CharField(max_length=255)
@@ -167,6 +168,7 @@ class UMKM(models.Model):
     uraian_masalah = models.CharField(max_length=255)
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
+    point = models.PointField(null=True)
     
 class JenisProdukUMKM(models.Model):
 #   # FK ID UMKM

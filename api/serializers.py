@@ -8,6 +8,7 @@ from rest_framework.validators import UniqueValidator
 from rest_framework.response import Response
 from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.gis.geos import Point
 from base.models import ProdukHukum, RapatKoordinasi, Paparan, Berita, Fakta, Detail, Koperasi, JenisProdukKoperasi, UMKM, JenisProdukUMKM, PermintaanProduk, PermintaanPemasok, PenilaianPemasok, TenagaKerja, Perijinan, BahanBaku, PemakaianEnergi, AlatProduksi, Fasilitas, Pelatihan, LaporanKeuangan
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -346,8 +347,29 @@ class KoperasiSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Koperasi
-        fields = ('id', 'nama', 'alamat', 'foto_profil', 'jenis', 'badan_hukum', 'ketua', 'sekretaris', 'bendahara', 'pengelola', 'pengawas', 'jml_anggota', 'jml_karyawan', 'tgl_rat', 'jml_hadir_rat', 'produk_unggulan', 'simpanan', 'pinjaman', 'latitude', 'longitude', 'tgl_penginputan', 'nama_pemilik', 'nib', 'nik', 'dok_ketua', 'dok_sekretaris', 'dok_bendahara', 'dok_pengelola', 'dok_pengawas', 'jenis_produk_koperasi', 'lapkeu_koperasi')
-        
+        fields = ('id', 'nama', 'alamat', 'foto_profil', 'jenis', 'badan_hukum', 'ketua', 'sekretaris', 'bendahara', 'pengelola', 'pengawas', 'jml_anggota', 'jml_karyawan', 'tgl_rat', 'jml_hadir_rat', 'produk_unggulan', 'simpanan', 'pinjaman', 'latitude', 'longitude', 'point', 'tgl_penginputan', 'nama_pemilik', 'nib', 'nik', 'dok_ketua', 'dok_sekretaris', 'dok_bendahara', 'dok_pengelola', 'dok_pengawas', 'jenis_produk_koperasi', 'lapkeu_koperasi')
+    
+    def get_point(self, obj):
+            longitude = obj.longitude
+            latitude = obj.latitude
+            
+            if longitude is not None and latitude is not None:
+                return {
+                    'type': 'Point',
+                    'coordinates': [longitude, latitude]
+                }
+            return None
+
+    def validate(self, data):
+            longitude = data.get('longitude')
+            latitude = data.get('latitude')
+
+            if longitude is not None and latitude is not None:
+                point = Point(longitude, latitude)
+                data['point'] = point
+
+            return data
+       
     def create(self, validated_data):
         jenis_produks_data = validated_data.pop('jenis_produk_koperasi', [])
         lapkeu_data = validated_data.pop('lapkeu_koperasi')
@@ -642,8 +664,29 @@ class UMKMSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UMKM
-        fields = ('nama_pemilik', 'nomor_anggota', 'alamat_domisili', 'nik', 'telepon', 'email', 'foto_profil', 'nama_usaha', 'alamat_usaha', 'bentuk', 'tahun_berdiri', 'bidang', 'wilayah_pemasaran', 'omzet', 'total_aset', 'skala', 'uraian_masalah', 'jenis_produk_umkm', 'permintaan_produk_umkm', 'permintaan_pemasok_umkm', 'penilaian_pemasok_umkm', 'tenaga_kerja_umkm', 'perijinan_umkm', 'bahan_baku_umkm', 'pemakaian_energi_umkm', 'alat_produksi_umkm', 'fasilitas_umkm', 'pelatihan_umkm', 'lapkeu_umkm')
-        
+        fields = ('nama_pemilik', 'nomor_anggota', 'alamat_domisili', 'nik', 'telepon', 'email', 'foto_profil', 'nama_usaha', 'alamat_usaha', 'bentuk', 'tahun_berdiri', 'bidang', 'wilayah_pemasaran', 'omzet', 'total_aset', 'skala', 'uraian_masalah', 'latitude', 'longitude', 'point', 'jenis_produk_umkm', 'permintaan_produk_umkm', 'permintaan_pemasok_umkm', 'penilaian_pemasok_umkm', 'tenaga_kerja_umkm', 'perijinan_umkm', 'bahan_baku_umkm', 'pemakaian_energi_umkm', 'alat_produksi_umkm', 'fasilitas_umkm', 'pelatihan_umkm', 'lapkeu_umkm')
+    
+    def get_point(self, obj):
+            longitude = obj.longitude
+            latitude = obj.latitude
+            
+            if longitude is not None and latitude is not None:
+                return {
+                    'type': 'Point',
+                    'coordinates': [longitude, latitude]
+                }
+            return None
+
+    def validate(self, data):
+            longitude = data.get('longitude')
+            latitude = data.get('latitude')
+
+            if longitude is not None and latitude is not None:
+                point = Point(longitude, latitude)
+                data['point'] = point
+
+            return data
+       
     def create(self, validated_data):
         jenis_produks_data = validated_data.pop('jenis_produk_umkm', [])
         permintaan_produks_data = validated_data.pop('permintaan_produk_umkm', [])
@@ -660,6 +703,24 @@ class UMKMSerializer(serializers.ModelSerializer):
         
         foto_profil = validated_data.pop('foto_profil', None)
         
+        def get_point(self, obj):
+            if obj.longitude is not None and obj.latitude is not None:
+                return {
+                    'type': 'Point',
+                    'coordinates': [obj.longitude, obj.latitude]
+                }
+            return None
+
+        def validate(self, data):
+            longitude = data.get('longitude')
+            latitude = data.get('latitude')
+
+            if longitude is not None and latitude is not None:
+                point = Point(longitude, latitude)
+                data['point'] = point
+
+            return data
+            
         instance = super().create(validated_data)
         
         if foto_profil:
