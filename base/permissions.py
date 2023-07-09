@@ -42,6 +42,19 @@ class IsAdminSI(BasePermission):
 
         return bool(profile.role == 'adminsi')
     
+class IsSuperAdmin(BasePermission):
+    def has_permission(self, request, view):
+        # Check if the user has the required role
+        if not request.user.is_authenticated:
+            return False
+
+        try:
+            profile = request.user.detail
+        except Detail.DoesNotExist:
+            return False
+
+        return bool(profile.role == 'superadmin')
+    
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.

@@ -78,7 +78,7 @@ class Fakta(models.Model):
     gambar = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
   
 class Koperasi(models.Model):
-    
+    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner')
     nama = models.CharField(max_length=255)
     alamat = models.CharField(max_length=255)
     foto_profil = models.ImageField((""), upload_to='foto_profil', height_field=None, width_field=None, max_length=None)
@@ -128,7 +128,7 @@ class JenisProdukKoperasi(models.Model):
     total = models.IntegerField(null=True)
     
 class UMKM(models.Model):
-#     # FK NIK pemilik
+    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner')
     nama_pemilik = models.CharField(max_length=255)
     nomor_anggota = models.CharField(max_length=255)
     alamat_domisili = models.CharField(max_length=255)
@@ -390,7 +390,7 @@ class LaporanKeuangan(models.Model):
     jasa_simpanan_berjangka = models.IntegerField()
     jasa_simpanan_khusus = models.IntegerField()
     biaya_asuransi = models.IntegerField()
-    biaya_penysh_piutang_tak_tertagih = models.IntegerField()
+    biaya_penysh_piutang_tak_tertagih = models.IntegerField(null=True)
     biaya_audit = models.IntegerField()
     biaya_pajak = models.IntegerField()
     biaya_keuangan_lain = models.IntegerField()

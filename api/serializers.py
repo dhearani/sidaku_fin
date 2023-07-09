@@ -293,7 +293,7 @@ class GambarSerializer(serializers.ModelSerializer):
 class FaktaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fakta
-        fields = '__all__'
+        fields = ('id', 'judul', 'isi', 'gambar', 'owner')
         
     def create(self, validated_data):
         gambar = validated_data.pop('gambar')
@@ -301,7 +301,7 @@ class FaktaSerializer(serializers.ModelSerializer):
         if gambar:
             cloudinary_storage = RawMediaCloudinaryStorage()
             instance.gambar = cloudinary_storage.save(gambar.name, gambar)   
-            
+           
         instance.save()
         return instance
     
@@ -371,6 +371,17 @@ class KoperasiSerializer(serializers.ModelSerializer):
             return data
        
     def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            owner = request.user
+            role = owner.detail.role
+            if role == 'koperasi':    
+                validated_data['owner'] = request.user
+            elif role != 'koperasi':
+                validated_data['owner'] = validated_data.pop('owner')
+                if validated_data['owner'] is None:
+                    raise serializers.ValidationError("User information must be filled.")
+        
         jenis_produks_data = validated_data.pop('jenis_produk_koperasi', [])
         lapkeu_data = validated_data.pop('lapkeu_koperasi')
         
@@ -688,6 +699,17 @@ class UMKMSerializer(serializers.ModelSerializer):
             return data
        
     def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            owner = request.user
+            role = owner.detail.role
+            if role == 'umkm':    
+                validated_data['owner'] = request.user
+            elif role != 'umkm':
+                validated_data['owner'] = validated_data.pop('owner')
+                if validated_data['owner'] is None:
+                    raise serializers.ValidationError("User information must be filled.")
+        
         jenis_produks_data = validated_data.pop('jenis_produk_umkm', [])
         permintaan_produks_data = validated_data.pop('permintaan_produk_umkm', [])
         permintaan_pemasoks_data = validated_data.pop('permintaan_pemasok_umkm', [])
@@ -702,24 +724,6 @@ class UMKMSerializer(serializers.ModelSerializer):
         lapkeu_data = validated_data.pop('lapkeu_umkm')
         
         foto_profil = validated_data.pop('foto_profil', None)
-        
-        def get_point(self, obj):
-            if obj.longitude is not None and obj.latitude is not None:
-                return {
-                    'type': 'Point',
-                    'coordinates': [obj.longitude, obj.latitude]
-                }
-            return None
-
-        def validate(self, data):
-            longitude = data.get('longitude')
-            latitude = data.get('latitude')
-
-            if longitude is not None and latitude is not None:
-                point = Point(longitude, latitude)
-                data['point'] = point
-
-            return data
             
         instance = super().create(validated_data)
         
