@@ -38,7 +38,7 @@ class Detail(models.Model):
     role = models.CharField(max_length=10, null=True)
 
 class ProdukHukum(models.Model):
-    nama = models.CharField(max_length=255, null=True)
+    nama = models.CharField(max_length=100, null=True)
     KATEGORI = (
         ("Undang-Undang", "Undang-Undang"),
         ("Perancangan Undang-Undang", "Perancangan Undang-Undang"),
@@ -52,17 +52,30 @@ class ProdukHukum(models.Model):
         ("Petunjuk Pelaksanaan", "Petunjuk Pelaksanaan"),
         ("Surat Edaran", "Surat Edaran")
     )
-    kategori = models.CharField(max_length=255, choices=KATEGORI)
+    kategori = models.CharField(max_length=35, choices=KATEGORI)
     tahun = models.IntegerField(null=True)
     dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class RapatKoordinasi(models.Model):
-    nama = models.CharField(max_length=255)
-    kategori = models.CharField(max_length=255)
+    nama = models.CharField(max_length=100)
+    KATEGORI = (
+        ("Undang-Undang", "Undang-Undang"),
+        ("Perancangan Undang-Undang", "Perancangan Undang-Undang"),
+        ("Peraturan Pemerintah", "Peraturan Pemerintah"),
+        ("Peraturan Presiden", "Peraturan Presiden"),
+        ("Keputusan dan Intruksi Presiden", "Keputusan dan Intruksi Presiden"),
+        ("Peraturan Menteri", "Peraturan Menteri"),
+        ("Keputusan Menteri", "Keputusan Menteri"),
+        ("Keputusan Deputi", "Keputusan Deputi"),
+        ("Peraturan Terkait", "Peraturan Terkait"),
+        ("Petunjuk Pelaksanaan", "Petunjuk Pelaksanaan"),
+        ("Surat Edaran", "Surat Edaran")
+    )
+    kategori = models.CharField(max_length=35, choices=KATEGORI)
     dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class Paparan(models.Model):
-    nama = models.CharField(max_length=255)
+    nama = models.CharField(max_length=100)
     dokumen = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     
 class Berita(models.Model):
@@ -73,13 +86,13 @@ class Berita(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
 class Fakta(models.Model):
-    judul = models.CharField(max_length=255)
-    isi = models.TextField(max_length=5000)
+    judul = models.CharField(max_length=50)
+    isi = models.TextField(max_length=255)
     gambar = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
   
 class Koperasi(models.Model):
-    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner')
-    nama = models.CharField(max_length=255)
+    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner_koperasi')
+    nama = models.CharField(max_length=50)
     alamat = models.CharField(max_length=255)
     foto_profil = models.ImageField((""), upload_to='foto_profil', height_field=None, width_field=None, max_length=None)
     JENIS_KOPERASI = (
@@ -89,18 +102,18 @@ class Koperasi(models.Model):
         ("Produsen", "Produsen"),
         ("Pemasaran", "Pemasaran")
     )
-    jenis = models.CharField(max_length=255, choices=JENIS_KOPERASI)
-    badan_hukum = models.CharField(max_length=255)
-    ketua = models.CharField(max_length=255)
-    sekretaris = models.CharField(max_length=255)
-    bendahara = models.CharField(max_length=255)
-    pengelola = models.CharField(max_length=255)
-    pengawas = models.CharField(max_length=255)
+    jenis = models.CharField(max_length=13, choices=JENIS_KOPERASI)
+    badan_hukum = models.CharField(max_length=50)
+    ketua = models.CharField(max_length=50)
+    sekretaris = models.CharField(max_length=50)
+    bendahara = models.CharField(max_length=50)
+    pengelola = models.CharField(max_length=50)
+    pengawas = models.CharField(max_length=50)
     jml_anggota = models.IntegerField(null=True)
     jml_karyawan = models.IntegerField(null=True)
     tgl_rat = models.DateField()
     jml_hadir_rat = models.IntegerField(null=True)
-    produk_unggulan = models.FileField(max_length=255, validators=[PDFValidator()])
+    produk_unggulan = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
     simpanan = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     pinjaman = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     latitude = models.FloatField()
@@ -108,8 +121,8 @@ class Koperasi(models.Model):
     point = models.PointField(null=True)
     tgl_penginputan = models.DateField()
     nama_pemilik = models.CharField(max_length=255)
-    nib = models.CharField(max_length=255)
-    nik = models.CharField(max_length=255)
+    nib = models.CharField(max_length=13)
+    nik = models.CharField(max_length=16)
     dok_ketua = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     dok_sekretaris = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
     dok_bendahara = models.FileField((""), upload_to='documents', null=True, validators=[PDFValidator()])
@@ -118,25 +131,24 @@ class Koperasi(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     
 class JenisProdukKoperasi(models.Model):
-#     # FK ID Koperasi
     koperasi = models.ForeignKey(Koperasi, on_delete=models.CASCADE, null=True, related_name='jenis_produk_koperasi')
     foto_produk = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
     komoditi = models.CharField(null=True, max_length=50)
     volume = models.IntegerField(null=True)
-    satuan = models.IntegerField(null=True)
+    satuan = models.CharField(max_length=10, null=True)
     harga = models.IntegerField(null=True)
     total = models.IntegerField(null=True)
     
 class UMKM(models.Model):
-    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner')
-    nama_pemilik = models.CharField(max_length=255)
-    nomor_anggota = models.CharField(max_length=255)
+    pemilik = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='owner_umkm')
+    nama_pemilik = models.CharField(max_length=50)
+    nomor_anggota = models.CharField(max_length=25)
     alamat_domisili = models.CharField(max_length=255)
-    nik = models.CharField(max_length=255)
-    telepon = models.CharField(max_length=255)
+    nik = models.CharField(max_length=16)
+    telepon = models.CharField(max_length=13)
     email = models.EmailField(unique=True)
     foto_profil = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
-    nama_usaha = models.CharField(max_length=255)
+    nama_usaha = models.CharField(max_length=50)
     alamat_usaha = models.CharField(max_length=255)
     BENTUK = (
         ("Perorangan", "Perorangan"),
@@ -145,7 +157,7 @@ class UMKM(models.Model):
         ("Koperasi", "Koperasi"),
         ("Lainnya", "Lainnya")
     )
-    bentuk = models.CharField(max_length=255, choices=BENTUK)
+    bentuk = models.CharField(max_length=10, choices=BENTUK)
     tahun_berdiri = models.IntegerField(null=True)
     BIDANG = (
         ("Makanan dalam Kemasan", "Makanan dalam Kemasan"),
@@ -155,7 +167,7 @@ class UMKM(models.Model):
         ("Jasa", "Jasa"),
         ("Lainnya", "Lainnya")
     )
-    bidang = models.CharField(max_length=255, choices=BIDANG)
+    bidang = models.CharField(max_length=25, choices=BIDANG)
     wilayah_pemasaran = models.CharField(max_length=255)
     omzet = models.IntegerField(null=True)
     total_aset = models.IntegerField(null=True)
@@ -164,7 +176,7 @@ class UMKM(models.Model):
         ("Kecil", "Kecil"),
         ("Menengah", "Menengah")
     )
-    skala = models.CharField(max_length=255, choices=SKALA)
+    skala = models.CharField(max_length=8, choices=SKALA)
     uraian_masalah = models.CharField(max_length=255)
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
@@ -172,17 +184,15 @@ class UMKM(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     
 class JenisProdukUMKM(models.Model):
-#   # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='jenis_produk_umkm')
     foto_produk = models.ImageField((""), upload_to='assets', height_field=None, width_field=None, max_length=None)
     komoditi = models.IntegerField(null=True)
     volume = models.IntegerField(null=True)
-    satuan = models.IntegerField(null=True)
+    satuan = models.CharField(max_length=10, null=True)
     harga = models.IntegerField(null=True)
     total = models.IntegerField(null=True)
     
 class PermintaanProduk(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='permintaan_produk_umkm')
     BULAN = (
         ("Januari", "Januari"),
@@ -198,14 +208,13 @@ class PermintaanProduk(models.Model):
         ("November", "November"),
         ("Desember", "Desember")
     )
-    bulan = models.CharField(max_length=255, choices=BULAN)
+    bulan = models.CharField(max_length=10, choices=BULAN)
     tahun = models.IntegerField(null=True)
     nama_produk = models.CharField(max_length=255)
-    permintaan = models.CharField(max_length=255)
-    produksi = models.CharField(max_length=255)
+    permintaan = models.IntegerField(null=True)
+    produksi = models.IntegerField(null=True)
     
 class PermintaanPemasok(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='permintaan_pemasok_umkm')
     BULAN = (
         ("Januari", "Januari"),
@@ -221,35 +230,33 @@ class PermintaanPemasok(models.Model):
         ("November", "November"),
         ("Desember", "Desember")
     )
-    bulan = models.CharField(max_length=255, choices=BULAN)
+    bulan = models.CharField(max_length=10, choices=BULAN)
     tahun = models.IntegerField(null=True)
     PEMASOK = (
         ("Retailer", "Retailer"),
         ("Supplier", "Supplier")
     )
-    pemasok = models.CharField(max_length=255)
-    permintaan = models.CharField(max_length=255)
-    produksi = models.CharField(max_length=255)
+    pemasok = models.CharField(max_length=8)
+    permintaan = models.IntegerField(null=True)
+    produksi = models.IntegerField(null=True)
     
 class PenilaianPemasok(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='penilaian_pemasok_umkm')
-    nama_pemasok = models.CharField(max_length=255)
-    kualitas = models.CharField(max_length=255)
-    pengiriman = models.CharField(max_length=255)
+    nama_pemasok = models.CharField(max_length=50)
+    kualitas = models.IntegerField(null=True)
+    pengiriman = models.IntegerField(null=True)
     harga = models.IntegerField(null=True)
     kualitas_harga = models.IntegerField(null=True)
     kualitas_pengiriman = models.IntegerField(null=True)
     harga_pengiriman = models.IntegerField(null=True)
     
 class TenagaKerja(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='tenaga_kerja_umkm')
     JENIS_KELAMIN = (
         ("Laki-laki", "Laki-laki"),
         ("Perempuan", "Perempuan")
     )
-    jenis = models.CharField(max_length=255, choices=JENIS_KELAMIN)
+    jenis = models.CharField(max_length=10, choices=JENIS_KELAMIN)
     jumlah = models.IntegerField(null=True)
     PENDIDIKAN = (
         ("SD Sederajat", "SD Sederajat"),
@@ -257,10 +264,9 @@ class TenagaKerja(models.Model):
         ("SMA Sederajat", "SMA Sederajat"),
         ("S1/S2/S3", "S1/S2/S3")
     )
-    pendidikan = models.CharField(max_length=255, choices=PENDIDIKAN)
+    pendidikan = models.CharField(max_length=15, choices=PENDIDIKAN)
     
 class Perijinan(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='perijinan_umkm')
     JENIS_PERIJINAN = (
         ("NIB", "NIB"),
@@ -272,20 +278,18 @@ class Perijinan(models.Model):
         ("Akta Pendirian", "Akta Pendirian"),
         ("Lainnya", "Lainnya")
     )
-    jenis = models.CharField(max_length=255, choices=JENIS_PERIJINAN)
-    nomor = models.CharField(max_length=255)
+    jenis = models.CharField(max_length=20, choices=JENIS_PERIJINAN)
+    nomor = models.CharField(max_length=50)
     tanggal = models.DateField()
     
 class BahanBaku(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='bahan_baku_umkm')
-    jenis = models.CharField(max_length=255)
+    jenis = models.CharField(max_length=50)
     volume = models.IntegerField(null=True)
     nilai = models.IntegerField(null=True)
-    asal = models.CharField(max_length=255)
+    asal = models.CharField(max_length=50)
     
 class PemakaianEnergi(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='pemakaian_energi_umkm')
     JENIS_ENERGI = (
         ("PLN", "PLN"),
@@ -293,17 +297,15 @@ class PemakaianEnergi(models.Model):
         ("Bahan Bakar Gas LPG (3kg/12kg)", "Bahan Bakar Gas LPG (3kg/12kg)"),
         ("Air (PDAM/HIPAM/Sumur)", "Air (PDAM/HIPAM/Sumur)")
     )
-    jenis = models.CharField(max_length=255, choices=JENIS_ENERGI)
+    jenis = models.CharField(max_length=50, choices=JENIS_ENERGI)
     kapasitas = models.IntegerField(null=True)
-    keterangan = models.CharField(max_length=255)
+    keterangan = models.CharField(max_length=50)
     
 class AlatProduksi(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='alat_produksi_umkm')
-    nama = models.CharField(max_length=255)
+    nama = models.CharField(max_length=50)
     
 class Fasilitas(models.Model):
-    # FK ID UMKM
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='fasilitas_umkm')
     JENIS_FASILITAS = (
         ("ISO", "ISO"),
@@ -314,20 +316,17 @@ class Fasilitas(models.Model):
         ("ALAT/MESIN", "ALAT/MESIN"),
         ("Lainnya", "Lainnya")
     )
-    jenis = models.CharField(max_length=255, choices=JENIS_FASILITAS)
-    nama = models.CharField(max_length=255)
+    jenis = models.CharField(max_length=20, choices=JENIS_FASILITAS)
+    nama = models.CharField(max_length=50)
     tahun = models.IntegerField(null=True)
     
 class Pelatihan(models.Model):
-    # FK ID UMKM 
     umkm = models.ForeignKey(UMKM, on_delete=models.CASCADE, null=True, related_name='pelatihan_umkm')
-    nama = models.CharField(max_length=255)
+    nama = models.CharField(max_length=50)
     tahun = models.IntegerField(null=True)
-    tempat = models.CharField(max_length=255)
+    tempat = models.CharField(max_length=50)
     
 class LaporanKeuangan(models.Model):
-#     # FK ID UMKM
-#     # FK ID Koperasi
     koperasi = models.OneToOneField(Koperasi, on_delete=models.CASCADE, null=True, related_name='lapkeu_koperasi')
     umkm = models.OneToOneField(UMKM, on_delete=models.CASCADE, null=True, related_name='lapkeu_umkm')
     nama_KUMKM = models.CharField(max_length=50)

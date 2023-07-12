@@ -43,7 +43,7 @@ class RegisterViewSet(ModelViewSet):
     permission_classes = [IsAdminUser]
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['username']  # Replace with the fields you want to filter on
+    filterset_fields = ['username'] 
     search_fields = ['username']
     
 class MyObtainTokenPairView(TokenObtainPairView):
@@ -130,7 +130,7 @@ class KoperasiViewSet(ModelViewSet):
     permission_classes = [IsAdminUser | IsKoperasi | IsOwnerOrReadOnly]
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['nama']  # Replace with the fields you want to filter on
+    filterset_fields = ['nama'] 
     search_fields = ['nama']
 
 class UMKMViewSet(ModelViewSet):
@@ -139,7 +139,7 @@ class UMKMViewSet(ModelViewSet):
     permission_classes = [IsAdminUser | IsUMKM | IsOwnerOrReadOnly]
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['nama_usaha']  # Replace with the fields you want to filter on
+    filterset_fields = ['nama_usaha']
     search_fields = ['nama_usaha']
 
 class LaporanKeuanganViewSet(ModelViewSet):
@@ -148,7 +148,7 @@ class LaporanKeuanganViewSet(ModelViewSet):
     permission_classes = [IsAdminUser | IsUMKM | IsKoperasi | IsOwnerOrReadOnly]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['nama_KUMKM']  # Replace with the fields you want to filter on
+    filterset_fields = ['nama_KUMKM']
     search_fields = ['nama_KUMKM']
 
 
@@ -300,18 +300,128 @@ class GrafikKUMKMView(APIView):
         buffer.seek(0)
         return HttpResponse(buffer.getvalue(), content_type='image/png')
 
+from django.db.models import Avg, StdDev, Count, Sum, Window
+from collections import Counter
 
 # komoditi koperasi dan UMKM
+class KomoditiKUMKM(APIView):
+    def get(self, request):
+        distinct_komoditi_umkm = JenisProdukUMKM.objects.values_list('komoditi', flat=True)
+        distinct_komoditi_koperasi = JenisProdukKoperasi.objects.values_list('komoditi', flat=True)
+        
+        komoditi_kumkm = list(distinct_komoditi_umkm) + list(distinct_komoditi_koperasi)
+        komoditi_counts = Counter(komoditi_kumkm)
 
+        labels = list(komoditi_counts.keys())
+        values = list(komoditi_counts.values())
+
+        # plt.figure harus ada kalo mau tampilin sbg gambar, kalo engga ga perlu
+        plt.figure(figsize=(8, 8))
+        plt.pie(values, labels=labels)
+        plt.title('Komoditi UMKM')
+        plt.axis('equal')
+
+        # kalo mau nampilin di windows baru
+        # plt.show()
+        
+        #kalo mau nampilin sbg gambar
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        plt.close()
+
+        # Return the chart as the response
+        buffer.seek(0)
+        return HttpResponse(buffer.getvalue(), content_type='image/png')
+    
 # Skala UMKM
+class SkalaUMKM(APIView):
+    def get(self, request):
+        distinct_skala = UMKM.objects.values_list('skala', flat=True)
+        skala_counts = Counter(distinct_skala)
+        
+        labels = list(skala_counts.keys())
+        values = list(skala_counts.values())
+        
+        plt.figure(figsize=(8, 8))
+        x_pos = range(len(labels))
+        plt.bar(x_pos, values)
+        plt.title('Komoditi UMKM')
+        plt.xlabel('Categories')
+        plt.ylabel('Values')
+        plt.xticks(x_pos, labels)
+        
+        # plt.show()
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        plt.close()
 
-# Omzet Kumulatif
+        # Return the chart as the response
+        buffer.seek(0)
+        return HttpResponse(buffer.getvalue(), content_type='image/png')
+    
+class OmzetTertinggi(APIView):
+    def get(self, request):
+        omzet = UMKM.objects.values_list('omzet', flat=True)
+        umkms = UMKM.objects.values_list('nama', flat=True)
+        
+        x_axis = list(umkms)
+        y_axis = list(omzet)
+        x_pos = range(len(x_axis))
+        
+        plt.figure(figsize=(8, 8))
+        plt.bar(x_pos, y_axis)
+        plt.xlabel('UMKM')
+        plt.ylabel('Omzet')
+        plt.title('Omzet Tertinggi')
+        plt.xticks(x_pos, x_axis)
+        
+        # plt.show()
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        plt.close()
+
+        # Return the chart as the response
+        buffer.seek(0)
+        return HttpResponse(buffer.getvalue(), content_type='image/png')
 
 # Permintaan Produk UMKM
+class MovingAverageUMKM(APIView):
+    def get(self):
+        distinct_komoditi = UMKM.objects.values_list('JenisProdukUMKM__komoditi', flat=True).distinct()
+        monthly_permintaan = PermintaanProduk.objects.values('bulan').annotate(total_permintaan=Sum('permintaan'))
+        sum_permintaan = PermintaanProduk.objects.aggregate(Sum('permintaan'))
+        ma = Sum(Count(monthly_permintaan)) / Count(distinct_komoditi)
+        
+        return ma
 
 # Bullwhip Effect KUMKM
+class BullwhipEffectUMKM(APIView):
+    def get(self):
+        count_bulan = PermintaanProduk.objects.annotate(Count("bulan"))
+        avg_permintaan = PermintaanProduk.objects.aggregate(Avg('permintaan'))
+        avg_produksi = PermintaanProduk.objects.aggregate(Avg('produksi'))
+        stddev_permintaan = PermintaanProduk.objects.aggregate(StdDev('permintaan'))
+        stddev_produksi = PermintaanProduk.objects.aggregate(StdDev('permintaan'))
+        koef_permintaan = stddev_permintaan / avg_permintaan
+        koef_produksi = stddev_produksi / avg_produksi
+        
+        be = koef_produksi / koef_permintaan
+        parameter = (1+(2*1/count_bulan)+(1^2/(count_bulan^2)))
+        
+        if be > parameter:
+            return False
+        else:
+            return True
+        
+        return
 
 # Rata" Kinerja Pemasok UMKM
+class AverageSupplierPerfUMKM(APIView):
+    def get(self):
+        # tabel prioritas
+        
+        
+        return
 
 
 
